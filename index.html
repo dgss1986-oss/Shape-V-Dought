@@ -122,12 +122,21 @@
     border-radius: var(--radius);
     padding: 14px 14px 12px;
     margin-bottom: 10px;
+    transition: border-color .2s ease, box-shadow .2s ease;
   }
   .exercise.done{ border-color: var(--ok); }
+  .exercise.current{ border: 2px solid var(--hot); box-shadow: 0 0 0 3px rgba(142,202,230,0.12); padding: 13px 13px 11px; }
   .ex-head{ display:flex; justify-content: space-between; align-items:flex-start; gap: 8px; }
   .ex-name{ font-size: 14.5px; font-weight: 600; }
   .ex-target{ font-family:'IBM Plex Mono',monospace; font-size: 11.5px; color: var(--cool); white-space:nowrap; }
   .ex-last{ font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--text-dim); margin: 6px 0 10px; }
+  .suggestion-tag{
+    font-family:'IBM Plex Mono',monospace; font-size: 11.5px; color: var(--hot);
+    background: rgba(142,202,230,0.08); border: 1px solid var(--hot-dim);
+    border-radius: 8px; padding: 7px 10px; margin: -2px 0 10px;
+  }
+  .suggestion-tag b{ color: var(--hot); }
+  .suggestion-tag.hold{ color: var(--text-dim); background: var(--panel-alt); border-color: var(--line); }
 
   .ex-actions{ display:flex; gap: 14px; margin-bottom: 10px; }
   .ex-action{
@@ -150,6 +159,21 @@
     border: 1px solid var(--line); color: var(--text-dim); cursor:pointer;
   }
   .swap-opt.selected{ background: var(--hot); color:#0a1116; border-color: var(--hot); font-weight:600; }
+
+  .chart-panel{ display:none; background: var(--panel-alt); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .chart-panel.open{ display:block; }
+  .chart-svg{ width: 100%; height: auto; display:block; }
+  .chart-empty{ font-size: 12px; color: var(--text-dim); text-align:center; padding: 10px 0; }
+
+  .notes-panel{ display:none; background: var(--panel-alt); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .notes-panel.open{ display:block; }
+  .notes-textarea{
+    width:100%; min-height: 60px; background: var(--panel); border: 1px solid var(--line);
+    color: var(--text); border-radius: 6px; padding: 8px 10px; font-family:'IBM Plex Sans',sans-serif;
+    font-size: 13px; resize: vertical;
+  }
+  .notes-textarea:focus{ outline:none; border-color: var(--hot); }
+  .notes-saved{ font-size: 10px; color: var(--text-dim); margin-top: 4px; text-align:right; }
 
   .sets{ display:flex; flex-direction:column; gap:6px; }
   .set-row{ display:flex; align-items:center; gap:8px; }
@@ -182,6 +206,7 @@
     display:flex; align-items:center; justify-content:center; font-size: 12px; cursor:pointer;
   }
   .rest-btn:active{ background: var(--cool); color: var(--bg); }
+  .rest-btn.rest-btn-empty{ background: transparent; border-color: transparent; cursor: default; }
 
   .rest-bar{
     position: fixed; left:0; right:0; bottom:0;
@@ -241,6 +266,20 @@
     pointer-events:none; white-space:nowrap;
   }
   .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+
+  .week-card{
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px; margin-top: 18px;
+  }
+  .week-title{ font-family:'Cinzel',serif; font-weight:700; font-size: 16px; margin-bottom: 12px; }
+  .week-stats{ display:flex; gap: 10px; margin-bottom: 12px; }
+  .week-stat{ flex:1; text-align:center; background: var(--panel-alt); border-radius: 8px; padding: 10px 6px; }
+  .week-stat-num{ font-family:'Cinzel',serif; font-weight:700; font-size: 22px; color: var(--hot); }
+  .week-stat-label{ font-size: 9.5px; color: var(--text-dim); text-transform:uppercase; letter-spacing:0.3px; margin-top: 2px; }
+  .week-feedback{
+    font-size: 12.5px; color: var(--text); background: var(--panel-alt);
+    border-left: 3px solid var(--hot); border-radius: 6px; padding: 10px 12px; line-height: 1.5;
+  }
 
   .hist-toggle{
     text-align:center; font-family:'IBM Plex Mono',monospace; font-size: 11.5px;
@@ -327,6 +366,8 @@
   <div id="exerciseList"></div>
 
   <button class="finish-btn" id="finishBtn">FINALIZAR TREINO</button>
+
+  <div class="week-card" id="weekCard"></div>
 
   <div class="hist-toggle" id="histToggle">▾ ver <span>histórico por exercício</span></div>
   <div class="history" id="history"></div>
@@ -558,6 +599,8 @@ let sessionInputs = {};
 let setDone = {};
 let openCues = {};
 let openSwap = {};
+let openChart = {};
+let openNotes = {};
 let variantChoice = {}; // slotId -> index
 
 // Versão standalone: usa o armazenamento local do próprio navegador
@@ -637,8 +680,81 @@ async function loadLastSession(optionId){
   }catch(e){ return null; }
 }
 
+// Sugere a carga da próxima sessão com base na última: se bateu o topo
+// da faixa de reps em todas as séries, sugere subir o peso.
+function computeLoadSuggestion(slot, lastSession){
+  if(!lastSession || !lastSession.sets || lastSession.sets.length === 0) return null;
+  const repMatch = String(slot.reps).match(/(\d+)\s*-\s*(\d+)/);
+  if(!repMatch) return null; // reps não numéricas (ex: "até falha") não geram sugestão
+  const targetTop = parseInt(repMatch[2], 10);
+
+  const allHitTop = lastSession.sets.every(s => (parseInt(s.reps, 10) || 0) >= targetTop);
+  const topWeight = Math.max(...lastSession.sets.map(s => s.weight || 0));
+  if(topWeight <= 0) return null;
+
+  if(allHitTop){
+    const increment = slot.rest >= 75 ? 2.5 : 1.25; // compostos sobem mais que isolados
+    const suggested = Math.round((topWeight + increment) * 4) / 4; // arredonda pra 0.25
+    return { type:'up', weight: suggested };
+  }
+  return { type:'hold', weight: topWeight };
+}
+
 function ytLink(name){
   return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(name + ' execução exercício');
+}
+
+async function loadFullHistory(optionId){
+  const raw = await safeGet('history:' + optionId);
+  if(!raw) return [];
+  try{ return JSON.parse(raw); }catch(e){ return []; }
+}
+
+// Gera um gráfico de linha simples (SVG) com a evolução de carga do exercício.
+function buildChartSVG(history){
+  if(!history || history.length < 2){
+    return '<div class="chart-empty">Registre pelo menos 2 sessões pra ver o gráfico de evolução.</div>';
+  }
+  const points = history.slice(-10).map(entry => ({
+    date: entry.date,
+    weight: Math.max(...entry.sets.map(s => s.weight || 0))
+  }));
+  const weights = points.map(p => p.weight);
+  const minW = Math.min(...weights);
+  const maxW = Math.max(...weights);
+  const range = (maxW - minW) || 1;
+
+  const W = 280, H = 90, padX = 10, padY = 14;
+  const stepX = points.length > 1 ? (W - padX*2) / (points.length - 1) : 0;
+  const coords = points.map((p, i) => {
+    const x = padX + i * stepX;
+    const y = H - padY - ((p.weight - minW) / range) * (H - padY*2);
+    return { x, y, weight: p.weight, date: p.date };
+  });
+
+  const pathD = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
+  const dots = coords.map(c => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="var(--hot)"/>`).join('');
+  const firstLabel = `<text x="${coords[0].x}" y="${H-2}" font-size="8" fill="var(--text-dim)" text-anchor="start">${coords[0].date.slice(5)}</text>`;
+  const lastLabel = `<text x="${coords[coords.length-1].x}" y="${H-2}" font-size="8" fill="var(--text-dim)" text-anchor="end">${coords[coords.length-1].date.slice(5)}</text>`;
+  const maxLabel = `<text x="${W-padX}" y="10" font-size="9" fill="var(--hot)" text-anchor="end">${maxW}kg</text>`;
+  const minLabel = `<text x="${W-padX}" y="${H-padY+4}" font-size="9" fill="var(--text-dim)" text-anchor="end">${minW}kg</text>`;
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" class="chart-svg">
+      <path d="${pathD}" fill="none" stroke="var(--hot)" stroke-width="2"/>
+      ${dots}
+      ${firstLabel}${lastLabel}${maxLabel}${minLabel}
+    </svg>
+  `;
+}
+
+async function loadNote(optionId){
+  const raw = await safeGet('note:' + optionId);
+  return raw || '';
+}
+async function saveNote(optionId, text){
+  if(text && text.trim()){ await safeSet('note:' + optionId, text); }
+  else{ safeRemove('note:' + optionId); }
 }
 
 function renderTabs(){
@@ -650,7 +766,7 @@ function renderTabs(){
     div.className = 'tab' + (key===currentDay ? ' active' : '') + (key===rotationNext && key!==currentDay ? ' suggested' : '');
     div.innerHTML = `${w.label}<span class="tag">${w.tag}</span>`;
     div.onclick = async () => {
-      currentDay = key; openCues = {}; openSwap = {};
+      currentDay = key; openCues = {}; openSwap = {}; manualCurrentSlot = null;
       await loadDraft(currentDay);
       await loadVariantChoices(currentDay);
       renderTabs();
@@ -673,9 +789,16 @@ async function renderDay(){
     const opt = getOption(slot);
     const last = await loadLastSession(opt.id);
     let lastText = 'Sem histórico ainda';
+    let suggestionHtml = '';
     if(last){
       const topWeight = Math.max(...last.sets.map(s => s.weight || 0));
       lastText = `Última sessão (${last.date}): ${topWeight}kg no topo`;
+      const suggestion = computeLoadSuggestion(slot, last);
+      if(suggestion && suggestion.type === 'up'){
+        suggestionHtml = `<div class="suggestion-tag">💡 Bateu tudo — tente <b>${suggestion.weight}kg</b> hoje</div>`;
+      } else if(suggestion && suggestion.type === 'hold'){
+        suggestionHtml = `<div class="suggestion-tag hold">🎯 Mantenha ~${suggestion.weight}kg, foque em completar as reps</div>`;
+      }
     }
     const card = document.createElement('div');
     card.className = 'exercise';
@@ -690,6 +813,10 @@ async function renderDay(){
       const draftReps = (sessionInputs[opt.id] && sessionInputs[opt.id][i] && sessionInputs[opt.id][i].reps) || '';
       const weightValueAttr = draftWeight !== '' ? ` value="${draftWeight}"` : '';
       const repsValueAttr = draftReps !== '' ? ` value="${draftReps}"` : '';
+      const isLastSet = i === slot.sets;
+      const restBtnHtml = isLastSet
+        ? `<div class="rest-btn rest-btn-empty" aria-hidden="true"></div>`
+        : `<div class="rest-btn" data-rest="${slot.rest}" title="Iniciar descanso">▶</div>`;
       rows += `
         <div class="set-row">
           <div class="set-num">${i}</div>
@@ -698,13 +825,15 @@ async function renderDay(){
           <input type="number" inputmode="numeric" placeholder="${prevReps || slot.reps}"${repsValueAttr} data-opt="${opt.id}" data-set="${i}" data-field="reps" />
           <div class="unit">reps</div>
           <div class="set-check${isChecked ? ' checked' : ''}" data-opt="${opt.id}" data-set="${i}" title="Marcar série concluída">✓</div>
-          <div class="rest-btn" data-rest="${slot.rest}" title="Iniciar descanso">▶</div>
+          ${restBtnHtml}
         </div>
       `;
     }
 
     const cuesOpen = openCues[slot.slotId] ? 'open' : '';
     const swapOpen = openSwap[slot.slotId] ? 'open' : '';
+    const chartOpen = openChart[slot.slotId] ? 'open' : '';
+    const notesOpen = openNotes[slot.slotId] ? 'open' : '';
     const failureNote = slot.toFailure ? '<div class="failure-note">🔥 Última série até a falha</div>' : '';
 
     const cuesHtml = `
@@ -719,6 +848,11 @@ async function renderDay(){
       </div>
     `;
 
+    const fullHistory = await loadFullHistory(opt.id);
+    const chartHtml = buildChartSVG(fullHistory);
+
+    const noteText = await loadNote(opt.id);
+
     card.innerHTML = `
       <div class="ex-head">
         <div class="ex-name">${opt.name}</div>
@@ -726,12 +860,22 @@ async function renderDay(){
       </div>
       ${failureNote}
       <div class="ex-last">${lastText}</div>
+      ${suggestionHtml}
       <div class="ex-actions">
         <div class="ex-action cues-toggle" data-slot="${slot.slotId}">▾ Como executar</div>
         <div class="ex-action swap swap-toggle" data-slot="${slot.slotId}">🔁 Trocar exercício</div>
       </div>
+      <div class="ex-actions">
+        <div class="ex-action chart-toggle" data-slot="${slot.slotId}">📈 Evolução</div>
+        <div class="ex-action notes-toggle" data-slot="${slot.slotId}">📝 ${noteText ? 'Ver nota' : 'Adicionar nota'}</div>
+      </div>
       <div class="cues ${cuesOpen}" id="cues-${slot.slotId}">${cuesHtml}</div>
       <div class="swap-panel ${swapOpen}" id="swap-${slot.slotId}">${swapHtml}</div>
+      <div class="chart-panel ${chartOpen}" id="chart-${slot.slotId}">${chartHtml}</div>
+      <div class="notes-panel ${notesOpen}" id="notes-${slot.slotId}">
+        <textarea class="notes-textarea" data-opt="${opt.id}" placeholder="Ex: senti no ombro, trocar pegada...">${noteText}</textarea>
+        <div class="notes-saved" id="notes-saved-${slot.slotId}">Salvo automaticamente</div>
+      </div>
       <div class="sets">${rows}</div>
     `;
     list.appendChild(card);
@@ -749,7 +893,7 @@ async function renderDay(){
     updateCardDoneState(slotId);
     scheduleDraftSave();
   }));
-  list.querySelectorAll('.rest-btn').forEach(el => el.addEventListener('click', () => {
+  list.querySelectorAll('.rest-btn:not(.rest-btn-empty)').forEach(el => el.addEventListener('click', () => {
     startRestTimer(parseInt(el.dataset.rest, 10));
   }));
   list.querySelectorAll('.cues-toggle').forEach(el => el.addEventListener('click', () => {
@@ -770,6 +914,34 @@ async function renderDay(){
     openSwap[slotId] = false;
     await renderDay();
   }));
+  list.querySelectorAll('.chart-toggle').forEach(el => el.addEventListener('click', () => {
+    const slotId = el.dataset.slot;
+    openChart[slotId] = !openChart[slotId];
+    document.getElementById('chart-' + slotId).classList.toggle('open', openChart[slotId]);
+  }));
+  list.querySelectorAll('.notes-toggle').forEach(el => el.addEventListener('click', () => {
+    const slotId = el.dataset.slot;
+    openNotes[slotId] = !openNotes[slotId];
+    document.getElementById('notes-' + slotId).classList.toggle('open', openNotes[slotId]);
+  }));
+  list.querySelectorAll('.notes-textarea').forEach(el => {
+    let noteTimer = null;
+    el.addEventListener('input', () => {
+      const optId = el.dataset.opt;
+      if(noteTimer) clearTimeout(noteTimer);
+      noteTimer = setTimeout(async () => {
+        await saveNote(optId, el.value);
+      }, 500);
+    });
+  });
+
+  list.querySelectorAll('.exercise').forEach(card => {
+    card.addEventListener('click', () => {
+      const slotId = card.id.replace('card-', '');
+      manualCurrentSlot = slotId;
+      updateVMeter();
+    });
+  });
 
   updateVMeter();
 }
@@ -914,22 +1086,34 @@ function updateCardDoneState(slotId){
   if(card) card.classList.toggle('done', filled === slot.sets && slot.sets > 0);
 }
 
+let manualCurrentSlot = null;
+
 function updateVMeter(){
   const w = WORKOUTS[currentDay];
   let total = w.exercises.length;
   let done = 0;
+  let autoCurrentSlotId = null;
   w.exercises.forEach(slot => {
     const opt = getOption(slot);
     let filled = 0;
     for(let i=1;i<=slot.sets;i++){ if(isSetMarkedDone(opt.id, i)) filled++; }
-    if(filled === slot.sets && slot.sets > 0) done++;
+    const isDone = filled === slot.sets && slot.sets > 0;
+    if(isDone) done++;
+    else if(autoCurrentSlotId === null) autoCurrentSlotId = slot.slotId;
   });
+  const manualStillValid = manualCurrentSlot && w.exercises.some(s => s.slotId === manualCurrentSlot);
+  const currentSlotId = manualStillValid ? manualCurrentSlot : autoCurrentSlotId;
   const pct = total ? done/total : 0;
   const len = 164;
   const offset = len - (len * pct);
   document.getElementById('vpath').setAttribute('stroke-dashoffset', offset);
   document.getElementById('vlabel').innerHTML = `<b>${done}</b> de ${total} exercícios registrados hoje`;
   document.getElementById('finishBtn').disabled = done === 0;
+
+  w.exercises.forEach(slot => {
+    const card = document.getElementById('card-' + slot.slotId);
+    if(card) card.classList.toggle('current', slot.slotId === currentSlotId);
+  });
 }
 
 async function finishWorkout(){
@@ -988,9 +1172,81 @@ async function finishWorkout(){
     safeRemove('draft:' + currentDay);
     sessionInputs = {};
     setDone = {};
+    manualCurrentSlot = null;
     renderTabs();
     await renderDay();
+    await renderWeekSummary();
   }
+}
+
+function daysAgo(n){
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0,10);
+}
+
+async function renderWeekSummary(){
+  const container = document.getElementById('weekCard');
+  const sevenDaysAgo = daysAgo(6); // hoje + 6 dias atrás = janela de 7 dias
+  const trainedDates = new Set();
+  let totalVolume = 0;
+
+  for(const dayKey of ORDER){
+    for(const slot of WORKOUTS[dayKey].exercises){
+      for(const opt of slot.options){
+        const raw = await safeGet('history:' + opt.id);
+        if(!raw) continue;
+        try{
+          const arr = JSON.parse(raw);
+          arr.forEach(entry => {
+            if(entry.date >= sevenDaysAgo){
+              trainedDates.add(entry.date);
+              entry.sets.forEach(s => {
+                const reps = parseInt(s.reps, 10);
+                if(!isNaN(reps) && s.weight){ totalVolume += s.weight * reps; }
+              });
+            }
+          });
+        }catch(e){}
+      }
+    }
+  }
+
+  // sequência atual: dias consecutivos treinados terminando hoje ou ontem
+  let streak = 0;
+  for(let i = 0; i < 30; i++){
+    const d = daysAgo(i);
+    if(trainedDates.has(d)) streak++;
+    else if(i === 0) continue; // ainda não treinou hoje, tudo bem
+    else break;
+  }
+
+  const sessionsCount = trainedDates.size;
+  const volumeRounded = Math.round(totalVolume);
+
+  let feedback;
+  if(sessionsCount === 0){
+    feedback = '💤 Nenhum treino registrado nos últimos 7 dias. Bora retomar?';
+  } else if(sessionsCount >= 5){
+    feedback = `🔥 Semana muito forte — ${sessionsCount} treinos! Sua consistência é o que constrói o V.`;
+  } else if(sessionsCount >= 3){
+    feedback = `💪 ${sessionsCount} treinos essa semana. Bom ritmo, siga assim.`;
+  } else {
+    feedback = `👍 ${sessionsCount} treino${sessionsCount>1?'s':''} essa semana. Cada sessão conta — tente encaixar mais uma se der.`;
+  }
+  if(streak >= 3){
+    feedback += ` Sequência atual de ${streak} dias — não quebra agora!`;
+  }
+
+  container.innerHTML = `
+    <div class="week-title">Últimos 7 dias</div>
+    <div class="week-stats">
+      <div class="week-stat"><div class="week-stat-num">${sessionsCount}</div><div class="week-stat-label">Treinos</div></div>
+      <div class="week-stat"><div class="week-stat-num">${streak}</div><div class="week-stat-label">Sequência</div></div>
+      <div class="week-stat"><div class="week-stat-num">${volumeRounded >= 1000 ? (volumeRounded/1000).toFixed(1)+'t' : volumeRounded+'kg'}</div><div class="week-stat-label">Volume total</div></div>
+    </div>
+    <div class="week-feedback">${feedback}</div>
+  `;
 }
 
 async function renderHistory(){
@@ -1096,6 +1352,7 @@ function importBackupFile(file){
       renderTabs();
       await renderDay();
       await renderHistory();
+      await renderWeekSummary();
       const toast = document.getElementById('toast');
       toast.textContent = failCount > 0
         ? `Backup restaurado parcialmente (${count} ok, ${failCount} falharam)`
@@ -1131,6 +1388,7 @@ document.getElementById('importInput').addEventListener('change', (e) => {
   await loadVariantChoices(currentDay);
   renderTabs();
   await renderDay();
+  await renderWeekSummary();
 })();
 </script>
 </body>
