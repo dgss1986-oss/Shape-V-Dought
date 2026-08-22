@@ -225,7 +225,6 @@
     display:flex; align-items:center; justify-content:center; font-size: 12px; cursor:pointer;
   }
   .rest-btn:active{ background: var(--cool); color: var(--bg); }
-  .rest-btn.rest-btn-empty{ background: transparent; border-color: transparent; cursor: default; }
 
   .rest-bar{
     position: fixed; left:0; right:0; bottom:0;
@@ -503,7 +502,7 @@ const WORKOUTS = {
   },
   C: {
     label: 'C', tag: 'Pernas', title: 'Dia C — Pernas',
-    focus: 'Quadríceps, posterior, glúteo, panturrilha e abdômen · máximo 6 exercícios',
+    focus: 'Quadríceps, posterior (isolado + composto), glúteo, panturrilha e abdômen',
     warmup: [
       '3 min de bike ou esteira em ritmo leve, pra aquecer o joelho antes de agachar',
       'Agachamento livre sem peso, 15 reps bem controladas',
@@ -526,6 +525,11 @@ const WORKOUTS = {
         { id:'c3_1', name:'Stiff (romeno)', cues:['Joelhos levemente flexionados, barra rente à perna','Sinta o alongamento no posterior de coxa','Volta pela extensão do quadril, não da lombar']},
         { id:'c3_2', name:'Flexora em pé', cues:['Uma perna por vez, apoio firme no aparelho','Controle a descida, sem deixar cair','Aperte o posterior no topo do movimento']}
       ]},
+      { slotId:'c7', sets:3, reps:'10-12', rest:75, toFailure:false, options:[
+        { id:'c7_0', name:'Stiff (romeno)', cues:['Joelhos levemente flexionados, barra rente à perna','Quadril vai pra trás, sinta o alongamento no posterior','Volta pela extensão do quadril, apertando o glúteo no topo']},
+        { id:'c7_1', name:'Levantamento terra romeno (halteres)', cues:['Mesma mecânica do stiff, halteres na frente do corpo','Quadril vai pra trás, joelho quase travado','Volta apertando o glúteo no topo, sem arredondar a lombar']},
+        { id:'c7_2', name:'Stiff unilateral (halter)', cues:['Uma perna de apoio, a outra estende pra trás','Ótimo pra corrigir desequilíbrio entre os lados','Equilíbrio e core ativado o tempo todo']}
+      ]},
       { slotId:'c4', sets:3, reps:'10-12', rest:60, toFailure:false, options:[
         { id:'c4_0', name:'Afundo (avanço)', cues:['Passo à frente, desça até o joelho de trás quase tocar o chão','Tronco ereto, core ativado','Alterne os lados ou faça tudo de um lado por vez']},
         { id:'c4_1', name:'Passada (walking lunge)', cues:['Passos alternados caminhando pra frente','Joelho da frente não ultrapassa a ponta do pé','Tronco ereto o tempo todo']},
@@ -545,7 +549,7 @@ const WORKOUTS = {
   },
   D: {
     label: 'D', tag: 'Braços', title: 'Dia D — Braços e Cintura',
-    focus: 'Volume extra de bíceps e tríceps (ângulos diferentes) + abdômen',
+    focus: 'Volume extra de bíceps e tríceps + finalizador de antebraço/braço + abdômen por último',
     warmup: [
       '2-3 min de cardio leve',
       'Círculos de braço (pequenos e depois amplos, 10 cada)',
@@ -573,6 +577,11 @@ const WORKOUTS = {
         { id:'d4_1', name:'Kickback (halteres)', cues:['Tronco inclinado à frente, cotovelo fixo alto','Última série: aperte até não conseguir mais','Movimento lento evita compensação do ombro']},
         { id:'d4_2', name:'Tríceps pulley (barra reta)', cues:['Pegada firme, cotovelos fixos','Última série: vá até não conseguir mais estender','Controle a subida sem deixar o peso puxar']}
       ]},
+      { slotId:'d7', sets:2, reps:'12-15', rest:30, toFailure:true, options:[
+        { id:'d7_0', name:'Rosca inversa (barra)', cues:['Pegada pronada, ativa antebraço e braquiorradial','Use carga mais leve que a rosca direta padrão','Cotovelos fixos, sem impulso do corpo — finalizador de braço']},
+        { id:'d7_1', name:'Rosca inversa (halteres)', cues:['Pegada pronada com halteres, mais amplitude de movimento','Cotovelos fixos ao lado do corpo','Controle a descida, sem deixar o peso cair']},
+        { id:'d7_2', name:'Rosca martelo (finalizador)', cues:['Pegada neutra, foco em antebraço e braquial','Cotovelo fixo, sem oscilar o ombro','Última série: vá até a falha']}
+      ]},
       { slotId:'d5', sets:2, reps:'até falha / 40s', rest:30, toFailure:true, options:[
         { id:'d5_0', name:'Prancha abdominal', cues:['Corpo reto, sem deixar o quadril cair','Ative o abdômen como se fosse levar um soco','Respire normalmente, não prenda o ar']},
         { id:'d5_1', name:'Abdômen cabo (crunch polia)', cues:['Ajoelhado de frente pra polia alta','Flexione o tronco usando o abdômen, não o braço','Aperte no ponto de contração máxima']},
@@ -587,7 +596,7 @@ const WORKOUTS = {
   },
   E: {
     label: 'E', tag: 'Ombros', title: 'Dia E — Ombro 3D e Cintura',
-    focus: 'Deltoide lateral em dobro (a chave do V) + frontal + trapézio · a base do taper do V',
+    focus: 'Deltoide lateral em dobro + posterior (crucifixo invertido) + frontal + trapézio · a base do taper do V',
     warmup: [
       '2-3 min de cardio leve',
       'Rotações de ombro com bastão, elástico ou sem carga, 15 reps cada direção',
@@ -599,11 +608,6 @@ const WORKOUTS = {
         { id:'e1_0', name:'Desenvolvimento militar', cues:['Core ativado, sem arquear demais a lombar','Empurre o peso pra cima e levemente pra trás','Desça até a altura dos ombros, controlado']},
         { id:'e1_1', name:'Desenvolvimento Arnold', cues:['Gire o punho conforme sobe, de frente pros lados','Ótimo pra ativar todas as cabeças do deltoide','Controle bem a fase de descida']},
         { id:'e1_2', name:'Desenvolvimento máquina', cues:['Trajetória guiada, mais seguro pra cargas altas','Ajuste o banco pro encosto alinhar com o ombro','Foco na execução sem se preocupar com equilíbrio']}
-      ]},
-      { slotId:'e2', sets:3, reps:'12-15', rest:45, toFailure:true, options:[
-        { id:'e2_0', name:'Encolhimento com barra', cues:['Segure a barra na frente do corpo, braços estendidos','Suba os ombros em direção às orelhas, sem girar','Desça controlado, sem deixar a carga puxar de repente']},
-        { id:'e2_1', name:'Encolhimento com halteres', cues:['Halteres ao lado do corpo, suba os ombros retos','Aperte no topo por um instante antes de descer','Evite rolar os ombros pra frente ou pra trás']},
-        { id:'e2_2', name:'Encolhimento no cabo/máquina', cues:['Trajetória guiada, boa estabilidade durante o movimento','Suba os ombros em linha reta até as orelhas','Controle a descida sem deixar o peso cair']}
       ]},
       { slotId:'e3', sets:2, reps:'12-15', rest:45, toFailure:true, options:[
         { id:'e3_0', name:'Elevação frontal', cues:['Suba o halter ou barra até a altura dos olhos','Cotovelo levemente flexionado, sem balançar o tronco','Foco no deltoide anterior, carga moderada']},
@@ -619,6 +623,16 @@ const WORKOUTS = {
         { id:'e5_0', name:'Elevação lateral unilateral (cabo)', cues:['Um lado de cada vez, foco total na ativação','Cotovelo levemente flexionado o tempo todo','Última série: esprema até não conseguir subir mais']},
         { id:'e5_1', name:'Elevação lateral inclinado (halter)', cues:['Deite de lado no banco inclinado','Eleve o halter com controle total, sem impulso','Ótimo pra isolar sem ajuda do trapézio']},
         { id:'e5_2', name:'Elevação lateral em pé (halter leve)', cues:['Mesma execução da lateral padrão, carga bem leve','Foco total em sentir o deltoide trabalhando','Ótimo pra fechar a sessão de ombro']}
+      ]},
+      { slotId:'e7', sets:3, reps:'12-15', rest:45, toFailure:true, options:[
+        { id:'e7_0', name:'Crucifixo invertido (máquina)', cues:['Ajuste o banco pra pegar os braços na altura do ombro','Abra os braços apertando as escápulas na fase final','Trajetória guiada, boa segurança pra treinar até a falha']},
+        { id:'e7_1', name:'Crucifixo invertido (cabo)', cues:['Cabos cruzados na altura do ombro, tronco levemente inclinado','Abra os braços em arco, apertando as escápulas','Controle a volta, sem deixar o cabo puxar de repente']},
+        { id:'e7_2', name:'Face pull (cabo)', cues:['Puxe em direção ao rosto, cotovelos altos','Ativa deltoide posterior e rotadores externos','Ótimo pra postura e saúde do ombro']}
+      ]},
+      { slotId:'e2', sets:3, reps:'12-15', rest:45, toFailure:true, options:[
+        { id:'e2_0', name:'Encolhimento com barra', cues:['Segure a barra na frente do corpo, braços estendidos','Suba os ombros em direção às orelhas, sem girar','Desça controlado, sem deixar a carga puxar de repente']},
+        { id:'e2_1', name:'Encolhimento com halteres', cues:['Halteres ao lado do corpo, suba os ombros retos','Aperte no topo por um instante antes de descer','Evite rolar os ombros pra frente ou pra trás']},
+        { id:'e2_2', name:'Encolhimento no cabo/máquina', cues:['Trajetória guiada, boa estabilidade durante o movimento','Suba os ombros em linha reta até as orelhas','Controle a descida sem deixar o peso cair']}
       ]},
       { slotId:'e6', sets:3, reps:'30-40s cada lado', rest:30, toFailure:true, options:[
         { id:'e6_0', name:'Prancha lateral', cues:['Corpo alinhado, sem deixar o quadril cair','Ative o oblíquo como se fosse levar um soco no lado','Mantenha a respiração normal durante a pausa']},
@@ -867,10 +881,7 @@ async function renderDay(){
       const draftReps = (sessionInputs[opt.id] && sessionInputs[opt.id][i] && sessionInputs[opt.id][i].reps) || '';
       const weightValueAttr = draftWeight !== '' ? ` value="${draftWeight}"` : '';
       const repsValueAttr = draftReps !== '' ? ` value="${draftReps}"` : '';
-      const isLastSet = i === slot.sets;
-      const restBtnHtml = isLastSet
-        ? `<div class="rest-btn rest-btn-empty" aria-hidden="true"></div>`
-        : `<div class="rest-btn" data-rest="${slot.rest}" title="Iniciar descanso">▶</div>`;
+      const restBtnHtml = `<div class="rest-btn" data-rest="${slot.rest}" title="Iniciar descanso">▶</div>`;
       rows += `
         <div class="set-row">
           <div class="set-num">${i}</div>
@@ -947,7 +958,7 @@ async function renderDay(){
     updateCardDoneState(slotId);
     scheduleDraftSave();
   }));
-  list.querySelectorAll('.rest-btn:not(.rest-btn-empty)').forEach(el => el.addEventListener('click', () => {
+  list.querySelectorAll('.rest-btn').forEach(el => el.addEventListener('click', () => {
     startRestTimer(parseInt(el.dataset.rest, 10));
   }));
   list.querySelectorAll('.cues-toggle').forEach(el => el.addEventListener('click', () => {
